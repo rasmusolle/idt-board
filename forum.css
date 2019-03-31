@@ -1,0 +1,23 @@
+table.threadlist, table.userlist, table.header {
+	width: 100%;
+}
+table.threadlist, table.threadlist td, table.threadlist th,
+table.userlist, table.userlist td, table.userlist th,
+.content {
+	border: 1px solid black;
+	border-collapse: collapse;
+	border-spacing: 0px;
+	padding: 5px;
+}
+
+table.postform td {
+	padding: 5px;
+}
+
+.left	{ text-align: left; }
+.center	{ text-align: center; }
+.right	{ text-align: right; }
+
+form {
+	margin: 0;
+}
