@@ -91,9 +91,21 @@ function pageheader($title = NULL) {
 		$c++;
 	}
 	?>
-</div><br>
-<?php
+</div><br><?php
 }
+
+function pagefooter() {
+	global $start;
+	?>
+<br><div class="content center">
+<?php
+$rendertime = microtime(true) - $start;
+echo sprintf("Page rendered in %1.3f seconds using %dKB of memory", $rendertime, memory_get_usage(false) / 1024);
+?>
+</div>
+</body></html><?php
+}
+
 
 function NewPostForm($threadid) {
 	global $cookie_uname, $cookie_token, $full_path;
@@ -126,18 +138,25 @@ function authenticate($use_cookies, $user = null, $pass = null) {
 	if (isset($user) && $user != '' && isset($pass) && $pass != '') {
 		$query = fetch("SELECT idx, pass_hash FROM users WHERE uname = ?", [$user]);
 
-		if (!password_verify($pass, $query['pass_hash'])) die("Authentication failed.");
+		if (!password_verify($pass, $query['pass_hash'])) error("Authentication failed.");
 	} else if ($use_cookies && isset($_COOKIE[$cookie_uname]) && isset($_COOKIE[$cookie_token])) {
 		$query = fetch("SELECT idx FROM users WHERE uname = ? AND logintoken = ?", [$_COOKIE[$cookie_uname], $_COOKIE[$cookie_token]]);
 
 		if ($query == null) {
-			die("Authentication failed");
+			error("Authentication failed");
 		}
 	} else {
-		die("Authentication failed (incomplete data).");
+		error("Authentication failed (incomplete data).");
 	}
 
 	return $query['idx'];
+}
+
+function error($msg) {
+	pageheader('Error');
+	echo '<div class="content center"><strong>Error</strong><br>'.$msg.'</div>';
+	pagefooter();
+	die();
 }
 
 // update the last updated timestamp for a post/thread
@@ -194,11 +213,11 @@ if (isset($_GET['login'])) { // **** Display login form
 </table></form></div>
 	<?php
 } else if (isset($_GET['login2'])) { // **** Process login
-	if (result("SELECT COUNT(*) FROM users WHERE uname = ?", [$_POST['uname']]) != 1) die("User doesn't exist.");
+	if (result("SELECT COUNT(*) FROM users WHERE uname = ?", [$_POST['uname']]) != 1) error("User doesn't exist.");
 
 	$userdata = fetch("SELECT idx, pass_hash, lastlogin, UNIX_TIMESTAMP(lastlogin) AS llstamp FROM users WHERE uname=?", [$_POST['uname']]);
 
-	if (!password_verify($_POST['pass'], $userdata['pass_hash'])) die("Authentication failed.");
+	if (!password_verify($_POST['pass'], $userdata['pass_hash'])) error("Authentication failed.");
 
 	if (!isset($_COOKIE[$cookie_uname]) || !isset($_COOKIE[$cookie_token])) {
 		//$newid = md5(uniqid(rand(), true));
@@ -236,31 +255,28 @@ if (isset($_GET['login'])) { // **** Display login form
 	<tr><td align="center" colspan="2"><input type="submit" value="Submit"></td></tr>
 </table></form></div><?php
 } else if (isset($_GET['adduser2'])) { // **** Add a user to the database
-	pageheader();
-
-	if (htmlspecialchars($_POST['uname'], ENT_QUOTES) != $_POST['uname']) die("Avoid special characters (&lt;, &gt;, &#039, &quot;) in user name ");
+	if (htmlspecialchars($_POST['uname'], ENT_QUOTES) != $_POST['uname']) error("Avoid special characters (&lt;, &gt;, &#039, &quot;) in user name ");
 
 	// check if user already exists
 	if (result("SELECT COUNT(*) FROM users WHERE uname = ?", [$_POST['uname']]) == 0) {
 		if ($_POST['pass'] == $_POST['vpass']) {
-			if ($_POST['pass'] == '' || $_POST['pass'][strlen($_POST['pass']) - 1] == '!') die("Please fill in all the fields.");
+			if ($_POST['pass'] == '' || $_POST['pass'][strlen($_POST['pass']) - 1] == '!') error("Please fill in all the fields.");
 
 			$pass_hash = password_hash($_POST['pass'], PASSWORD_BCRYPT, ['cost' => 10]);
 			query("INSERT INTO users SET idx=NULL, joined=NOW(), uname=?, pass_hash=?", [$_POST['uname'], $pass_hash]);
 
 			header("Location: $my_path");
 		} else {
-			echo "the passwords did not match";
+			error("The passwords don't match.");
 		}
 	} else {
-		echo "User name $_POST[uname] already exists.";
+		error("An user with the name already exists.");
 	}
-
 } else if (isset($_GET['userinfo'])) { // **** User info page
-	if (result("SELECT COUNT(*) FROM users WHERE idx = ?", [$_GET['userinfo']]) != 1) die("This user doesn't exist!");
+	if (result("SELECT COUNT(*) FROM users WHERE idx = ?", [$_GET['userinfo']]) != 1) error("This user doesn't exist!");
 
 	// get info from users database
-	$userdata = fetch("SELECT uname, UNIX_TIMESTAMP(joined) as joindate, logintoken, UNIX_TIMESTAMP(lastlogin), postcount as login FROM users WHERE idx = ?", [$_GET['userinfo']]);
+	$userdata = fetch("SELECT uname, UNIX_TIMESTAMP(joined) as joindate, logintoken, postcount, UNIX_TIMESTAMP(lastlogin) as login FROM users WHERE idx = ?", [$_GET['userinfo']]);
 
 	pageheader($userdata['uname'] . " user info");
 
@@ -292,8 +308,8 @@ if (isset($_GET['login'])) { // **** Display login form
 	}
 	echo "</table>";
 } else if (isset($_GET['chpass'])) { // **** Change password form
+	if (!isset($_COOKIE[$cookie_uname]) && !isset($_COOKIE[$cookie_token])) error('You need to login!');
 	pageheader();
-	if (!isset($_COOKIE[$cookie_uname]) && !isset($_COOKIE[$cookie_token])) die('You need to login!');
 	?>
 <div class="content">
 	<b>Change Password</b><br>
@@ -306,8 +322,8 @@ if (isset($_GET['login'])) { // **** Display login form
 </div>
 	<?php
 } else if (isset($_GET['chpass2'])) { // **** Set new password
-	if ($_POST['newpass'] != $_POST['vnewpass']) die("The passwords aren't the same!");
-	if ($_POST['newpass'] == '') die("You can't have a blank password!");
+	if ($_POST['newpass'] != $_POST['vnewpass']) error("The passwords aren't the same!");
+	if ($_POST['newpass'] == '') error("You can't have a blank password!");
 
 	$newpass_hash = password_hash($_POST['newpass'], PASSWORD_BCRYPT, ['cost' => 10]);
 	$uid = authenticate(false, $_POST['uname'], $_POST['oldpass']);
@@ -320,7 +336,7 @@ if (isset($_GET['login'])) { // **** Display login form
 } else if (isset($_GET['showthread'])) { // **** Show a single thread
 	// put thread subject in title
 	$subject = result("SELECT subject FROM board WHERE idx = ?", [$_GET['showthread']]);
-	//mysqli_stmt_fetch($query) or die("no such post found" . mysqli_error($dbh));
+	if ($subject == null) error("No such post found.");
 	pageheader($subject);
 
 	// count posts in thread
@@ -370,12 +386,10 @@ FROM board, users WHERE board.author = users.idx AND (board.replyto = ? OR board
 
 	NewPostForm($_GET['showthread']);
 } else if (isset($_GET['addpost'])) { // **** Add a post
-	pageheader();
-
 	$uid = authenticate(true);
 
-	if ($_POST['inresponseto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) die("Cannot start thread with empty subject.");
-	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) die("Please type a message for your post.");
+	if ($_POST['inresponseto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) error("Cannot start thread with empty subject.");
+	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) error("Please type a message for your post.");
 
 	query("INSERT INTO board VALUES(NULL,NOW(),NOW(),?,?,?,?,?)",
 		[$uid, $_POST['inresponseto'], htmlspecialchars($_POST['subject'], ENT_QUOTES), preg_replace($tags_search, $tags_replace, htmlspecialchars($_POST['message'], ENT_QUOTES)), $_SERVER['REMOTE_ADDR']]);
@@ -389,30 +403,22 @@ FROM board, users WHERE board.author = users.idx AND (board.replyto = ? OR board
 	}
 	header("Location: $my_path?showthreads");
 } else if (isset($_GET['editpost'])) { // **** Display post edit form
-	pageheader();
-
 	$post = fetch("SELECT subject,message FROM board WHERE idx = ?", [$_GET['editpost']]);
+	if ($post == null) error("Post doesn't exist.");
 
-	if ($post == null) die("Post doesn't exist.");
-
+	pageheader();
 	EditPostForm($_GET['editpost'], preg_replace($tags_decode_search, $tags_decode_replace, $post['message']), $post['subject']);
 } else if (isset($_GET['editpost2'])) { // **** Commit an edited post
 	$posttoedit = intval($_POST['posttoupdate']);
 
 	// look up what post this reponds to and when it was first posted
 	$thread = fetch("SELECT replyto, UNIX_TIMESTAMP(postedtime) FROM board WHERE idx = ? LIMIT 1", [$_POST['posttoupdate']]);
-
-	if ($thread == null) die("Couldn't find thread.");
+	if ($thread == null) error("Couldn't find thread.");
 
 	$uid = authenticate(true);
 
-	if ($query['replyto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) {
-		die("Thread cannot have empty subject");
-	}
-
-	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) {
-		die("empty message not allowed!");
-	}
+	if ($query['replyto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) error("Cannot start thread with empty subject.");
+	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) error("Please type a message for your post.");
 
 	$message = preg_replace($tags_search,$tags_replace,htmlspecialchars($_POST['message'],ENT_QUOTES))."<br><br><small><i>edited ".date("$datefmt $timefmt")."</i></small>";
 	query("UPDATE board SET subject = ?, message = ?, ip = ?, lasttime = NOW() WHERE idx = ? AND author = ? LIMIT 1",
@@ -525,11 +531,6 @@ by <span class=\"name\"><a href=\"$my_path?userinfo={$thread['lastuid']}\">{$thr
 	}
 }
 
-?><br>
-<div class="content center">
-<?php
-$rendertime = microtime(true) - $start;
-echo sprintf("Page rendered in %1.3f seconds using %dKB of memory", $rendertime, memory_get_usage(false) / 1024);
+pagefooter();
+
 ?>
-</div>
-</body></html>
