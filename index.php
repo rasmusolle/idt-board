@@ -3,7 +3,7 @@ $start = microtime(true);
 
 require "config.php";
 
-$tags_search = array(
+$tags_search = [
 	"/\\r\\n?/",
 	"/\\n/",
 	"/\\t/",
@@ -15,9 +15,9 @@ $tags_search = array(
 	"/\[em\](.*?)\[\/em\]/i",
 	"/\[small\](.*?)\[\/small\]/i",
 	"/&amp;#([0-9]*);/i", // don't destroy unicode
-);
+];
 
-$tags_replace = array(
+$tags_replace = [
 	"<br>", "<br>",
 	"&nbsp;&nbsp;&nbsp;&nbsp;",
 	"<a href=\"\\1\">\\2</a>",
@@ -28,9 +28,9 @@ $tags_replace = array(
 	"<em>\\1</em>",
 	"<small>\\1</small>",
 	"&#\\1;",
-);
+];
 
-$tags_decode_search = array(
+$tags_decode_search = [
 	"/<br>/",
 	"/&nbsp;&nbsp;&nbsp;&nbsp;/",
 	"/<a href\=\\\"(.*?)\\\">(.*?)<\/a>/",
@@ -40,9 +40,9 @@ $tags_decode_search = array(
 	"/<b>(.*?)<\/b>/",
 	"/<em>(.*?)<\/em>/",
 	"/<small>(.*?)<\/small>/",
-);
+];
 
-$tags_decode_replace = array(
+$tags_decode_replace = [
 	"\n",
 	"\t",
 	"[url=\\1]\\2[/url]",
@@ -52,13 +52,10 @@ $tags_decode_replace = array(
 	"[b]\\1[/b]",
 	"[em]\\1[/em]",
 	"[small]\\1[/small]",
-);
+];
 
 function pageheader($title = NULL) {
-	global $cookie_uname, $cookie_token, $my_path;
-	$messages = array(
-		"So, you wanted a message board, eh?"
-	);
+	global $cookie_uname, $cookie_token, $my_path, $messages;
 
 	echo "<html><head>";
 	echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
@@ -95,19 +92,6 @@ function pageheader($title = NULL) {
 	}
 	?>
 </div><br>
-<?php
-}
-
-function tagsinstructions() {
-	?>
-<td rowspan=4 class="forumcaption"><b>Tags:</b><br><br>
-<b>bold</b>: [b]bold[/b]<br>
-<i>italics</i>: [i]italics[/i]<br>
-<em>emphasis</em>: [em]emphasis[/em]<br>
-<u>underline</u>: [u]underline[/u]<br>
-<small>small</small>: [small]small[/small]<br>
-<a href="http://www.google.com" tabindex="-1">Link</a>: [url=http://www.google.com]Link[/url]<br>
-Image:[img=https://www.hcs64.com/images/mm1.png]
 <?php
 }
 
@@ -203,11 +187,11 @@ function result($query,$params = []) {
 if (isset($_GET['login'])) { // **** Display login form
 	pageheader();
 	?>
-<form action="<?php echo $full_path; ?>?login2" method="POST">
-<table>
-<tr><td>User Name<td><input type="text" name="uname" maxlength="31"></tr>
-<tr><td>Password<td><input type="password" name="pass" maxlength="31"></tr>
-<tr><td align="center" colspan="2"><input type="submit" value="Submit"></tr></table></form>
+<div class="content"><form action="<?php echo $full_path; ?>?login2" method="POST"><table>
+	<tr><td>Username</td><td><input type="text" name="uname" maxlength="31"></td></tr>
+	<tr><td>Password</td><td><input type="password" name="pass" maxlength="31"></td></tr>
+	<tr><td align="center" colspan="2"><input type="submit" value="Submit"></td></tr>
+</table></form></div>
 	<?php
 } else if (isset($_GET['login2'])) { // **** Process login
 	if (result("SELECT COUNT(*) FROM users WHERE uname = ?", [$_POST['uname']]) != 1) die("User doesn't exist.");
@@ -244,20 +228,17 @@ if (isset($_GET['login'])) { // **** Display login form
 	header("Location: $my_path");
 } else if (isset($_GET['adduser'])) { // **** Display form to add a user
 	pageheader();
-	?><form action="<?php echo $full_path; ?>?adduser2" method="POST">
-<table>
-<tr><td>User Name<td><input type="text" name="uname" maxlength="31"></tr>
-<tr><td>Password<td><input type="password" name="pass" maxlength="31"></tr>
-<tr><td>Verify Password<td><input type="password" name="vpass" maxlength="31"></tr>
-<tr><td align="center" colspan="2">
-<br><input type="submit" value="Submit"></tr></table>
-</form><?php
+	?>
+<div class="content"><form action="<?php echo $full_path; ?>?adduser2" method="POST"><table>
+	<tr><td>Username</td><td><input type="text" name="uname" maxlength="31"></td></tr>
+	<tr><td>Password</td><td><input type="password" name="pass" maxlength="31"></td></tr>
+	<tr><td>Verify Password</td><td><input type="password" name="vpass" maxlength="31"></td></tr>
+	<tr><td align="center" colspan="2"><input type="submit" value="Submit"></td></tr>
+</table></form></div><?php
 } else if (isset($_GET['adduser2'])) { // **** Add a user to the database
 	pageheader();
 
-	if (htmlspecialchars($_POST['uname'], ENT_QUOTES) != $_POST['uname']) {
-		die("avoid special characters (&lt;, &gt;, &#039, &quot;) in user name ");
-	}
+	if (htmlspecialchars($_POST['uname'], ENT_QUOTES) != $_POST['uname']) die("Avoid special characters (&lt;, &gt;, &#039, &quot;) in user name ");
 
 	// check if user already exists
 	if (result("SELECT COUNT(*) FROM users WHERE uname = ?", [$_POST['uname']]) == 0) {
@@ -325,10 +306,8 @@ if (isset($_GET['login'])) { // **** Display login form
 </div>
 	<?php
 } else if (isset($_GET['chpass2'])) { // **** Set new password
-	pageheader();
-
-	if ($_POST['newpass'] != $_POST['vnewpass']) die("password verification error");
-	if ($_POST['newpass'] == '') die("no blank password");
+	if ($_POST['newpass'] != $_POST['vnewpass']) die("The passwords aren't the same!");
+	if ($_POST['newpass'] == '') die("You can't have a blank password!");
 
 	$newpass_hash = password_hash($_POST['newpass'], PASSWORD_BCRYPT, ['cost' => 10]);
 	$uid = authenticate(false, $_POST['uname'], $_POST['oldpass']);
@@ -395,13 +374,8 @@ FROM board, users WHERE board.author = users.idx AND (board.replyto = ? OR board
 
 	$uid = authenticate(true);
 
-	if ($_POST['inresponseto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) {
-		die("Cannot start thread with empty subject");
-	}
-
-	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) {
-		die("empty message not allowed!");
-	}
+	if ($_POST['inresponseto'] == "0" && (!isset($_POST['subject']) || $_POST['subject'] == "" || ctype_space($_POST['subject']))) die("Cannot start thread with empty subject.");
+	if ((!isset($_POST['message']) || $_POST['message'] == "" || ctype_space($_POST['message']))) die("Please type a message for your post.");
 
 	query("INSERT INTO board VALUES(NULL,NOW(),NOW(),?,?,?,?,?)",
 		[$uid, $_POST['inresponseto'], htmlspecialchars($_POST['subject'], ENT_QUOTES), preg_replace($tags_search, $tags_replace, htmlspecialchars($_POST['message'], ENT_QUOTES)), $_SERVER['REMOTE_ADDR']]);
