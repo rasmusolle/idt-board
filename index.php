@@ -326,8 +326,8 @@ if (isset($_GET['login'])) { // **** Display login form
 	if ($_POST['newpass'] == '') error("You can't have a blank password!");
 
 	$newpass_hash = password_hash($_POST['newpass'], PASSWORD_BCRYPT, ['cost' => 10]);
-	$uid = authenticate(false, $_POST['uname'], $_POST['oldpass']);
-	query("UPDATE users SET pass_hash = ? WHERE idx = ? AND uname = ? LIMIT 1", [$newpass_hash, $uid, $_POST['uname']]);
+	$uid = authenticate(false, $_COOKIE[$cookie_uname], $_POST['oldpass']);
+	query("UPDATE users SET pass_hash = ? WHERE idx = ? LIMIT 1", [$newpass_hash, $uid]);
 
 	header("Location: $my_path");
 } else if (isset($_GET['newthread'])) {
@@ -393,7 +393,7 @@ FROM board, users WHERE board.author = users.idx AND (board.replyto = ? OR board
 
 	query("INSERT INTO board VALUES(NULL,NOW(),NOW(),?,?,?,?,?)",
 		[$uid, $_POST['inresponseto'], htmlspecialchars($_POST['subject'], ENT_QUOTES), preg_replace($tags_search, $tags_replace, htmlspecialchars($_POST['message'], ENT_QUOTES)), $_SERVER['REMOTE_ADDR']]);
-		
+
 	query("UPDATE users SET postcount = postcount + 1 WHERE idx = 1");
 
 	// update thread last updated time
@@ -458,7 +458,7 @@ FROM board, users WHERE board.author = users.idx AND (board.replyto = ? OR board
 	// thread list
 	$pinned_threads_sql = "idx IN ('" . join($pinned_threads, "','") . "') AS pinned,";
 
-	$query_str = 
+	$query_str =
 "SELECT
 	pinned,
 	b1.idx AS threadid,
@@ -518,7 +518,7 @@ by <span class=\"name\"><a href=\"$my_path?userinfo={$thread['lastuid']}\">{$thr
 	echo "</table>\n";
 
 	$count = result("SELECT COUNT(*) FROM board WHERE replyto = '0'");
-	
+
 	$showprev = ($pagenumber > 0);
 	$shownext = ($firstonpage + $threadsonthispage < $count);
 
